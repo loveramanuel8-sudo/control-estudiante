@@ -418,13 +418,33 @@ function clearRecords() {
     }
 }
 
+function parseRecordText(texto) {
+    let nombre = texto;
+    let rut = 'Sin ID';
+    let curso = 'Sin Curso';
+    
+    const rutMatch = texto.match(/- RUT:\s*(.*?)(?=\s*- Curso:|$)/);
+    const cursoMatch = texto.match(/- Curso:\s*(.*)$/);
+    
+    if (rutMatch || cursoMatch) {
+        nombre = texto.split(' - ')[0].trim();
+    }
+    if (rutMatch) rut = rutMatch[1].trim();
+    if (cursoMatch) curso = cursoMatch[1].trim();
+    
+    return { nombre, rut, curso };
+}
+
 function exportToExcel() {
     if(records.length === 0) return alert('No hay datos suficientes para exportar a Excel.');
-    const ws_data = [['Estudiante (RUT y Nombre)', 'Sentido (Entrada/Salida)', 'Hora', 'Fecha']];
-    records.forEach(r => ws_data.push([r.texto, r.tipo, r.hora, r.fecha]));
+    const ws_data = [['Nombre', 'RUT', 'Curso', 'Sentido', 'Hora', 'Fecha']];
+    records.forEach(r => {
+        const parsed = parseRecordText(r.texto);
+        ws_data.push([parsed.nombre, parsed.rut, parsed.curso, r.tipo, r.hora, r.fecha]);
+    });
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    ws['!cols'] = [{ wch: 40 }, { wch: 25 }, { wch: 15 }, { wch: 15 }];
+    ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, ws, "Control_Asistencia");
     XLSX.writeFile(wb, `Reporte_Acceso_QR_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.xlsx`);
 }
@@ -442,10 +462,13 @@ function exportToPDF() {
     doc.text(`Cantidad de Registros: ${records.length}`, 14, 34);
 
     const tableRows = [];
-    records.forEach(r => tableRows.push([r.texto, r.tipo, r.hora, r.fecha]));
+    records.forEach(r => {
+        const parsed = parseRecordText(r.texto);
+        tableRows.push([parsed.nombre, parsed.rut, parsed.curso, r.tipo, r.hora, r.fecha]);
+    });
 
     doc.autoTable({
-        head: [["Identidad (QR)", "Modo", "Hora", "Fecha de Emisión"]],
+        head: [["Nombre", "RUT", "Curso", "Modo", "Hora", "Fecha"]],
         body: tableRows,
         startY: 40,
         theme: 'grid',
