@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Acceso QR | Estudiantes</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Iconos integrados -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Estilos -->
+    <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Superior / Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fa-solid fa-qrcode"></i> Sistema de Acceso QR
+                </div>
+                
+                <nav class="app-nav">
+                    <button id="tab-scanner" class="tab-btn active"><i class="fa-solid fa-camera"></i> Control Escáner</button>
+                    <button id="tab-generator" class="tab-btn"><i class="fa-solid fa-wand-magic-sparkles"></i> Generador QRs</button>
+                </nav>
+
+                <div class="header-info">
+                    <i class="fa-regular fa-clock"></i> <span id="current-time">00:00:00</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- VISTA 1: ESCANER Y ACCESO -->
+            <div id="view-scanner" class="view-section active">
+                <div class="layout-grid">
+                    <!-- Zona de Escaneo -->
+                    <div class="scanner-section">
+                        <div class="control-panel">
+                            <h2>Registrar Asistencia</h2>
+                            <p>Seleccione el sentido del registro antes de escanear (el escáner se encenderá tras dar permisos).</p>
+                            <div class="toggle-buttons">
+                                <button id="btn-entrada" class="btn-mode active">
+                                    <i class="fa-solid fa-arrow-right-to-bracket"></i> ENTRADA
+                                </button>
+                                <button id="btn-salida" class="btn-mode">
+                                    <i class="fa-solid fa-arrow-right-from-bracket"></i> SALIDA
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="scanner-container">
+                            <div id="reader"></div>
+                            <div class="scan-overlay">
+                                <p id="scanner-status">Preparando cámara...</p>
+                            </div>
+                        </div>
+
+                        <div id="last-scan-result" class="scan-result hidden">
+                            <div class="result-icon success" id="scan-feedback-icon"><i class="fa-solid fa-circle-check"></i></div>
+                            <div class="result-data">
+                                <h3 id="result-name">Nombre Rut</h3>
+                                <p id="result-time">Entrada a las 08:00 AM</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Zona de Historial -->
+                    <div class="history-section">
+                        <div class="history-header">
+                            <h2>Registros Recientes (Hoy)</h2>
+                            <div class="export-actions">
+                                <button id="export-excel" class="btn-export btn-excel">
+                                    <i class="fa-solid fa-file-excel"></i> Excel
+                                </button>
+                                <button id="export-pdf" class="btn-export btn-pdf">
+                                    <i class="fa-solid fa-file-pdf"></i> PDF
+                                </button>
+                                <button id="clear-records" class="btn-export btn-clear">
+                                    <i class="fa-solid fa-trash-can"></i> Limpiar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table id="records-table">
+                                <thead>
+                                    <tr>
+                                        <th>Estudiante / RUT</th>
+                                        <th>Sentido</th>
+                                        <th>Hora</th>
+                                        <th>Fecha</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="records-body">
+                                    <!-- Los registros dinámicos -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA 2: GENERADOR DE QRS -->
+            <div id="view-generator" class="view-section">
+                <div class="layout-grid">
+                    <!-- Formulario -->
+                    <div class="generator-form-section">
+                        <h2>Crear Nuevo Código QR</h2>
+                        <p>Ingrese los datos que quedarán guardados en el código de este estudiante.</p>
+                        
+                        <div class="form-group">
+                            <label>Nombre Completo</label>
+                            <input type="text" id="qr-gen-name" placeholder="Ej. Juan Pérez González" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label>RUT / Identificador</label>
+                            <input type="text" id="qr-gen-rut" placeholder="Ej. 12.345.678-9" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label>Año que cursa (Curso)</label>
+                            <input type="text" id="qr-gen-year" placeholder="Ej. 4to Medio, 8vo Básico" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label>Fotografía del Rostro (Opcional)</label>
+                            <input type="file" id="qr-gen-photo" accept="image/*" class="file-input" capture="environment">
+                        </div>
+                        <button id="btn-generate-qr" class="btn-primary">
+                            <i class="fa-solid fa-qrcode"></i> Generar y Guardar
+                        </button>
+                    </div>
+
+                    <!-- Lista Guardada -->
+                    <div class="qrs-saved-section">
+                        <div class="history-header">
+                            <h2>Directorio de QR Creados</h2>
+                            <div class="export-actions">
+                                <button id="btn-print-qrs" class="btn-export">
+                                    <i class="fa-solid fa-print"></i> Imprimir Todo
+                                </button>
+                                <button id="clear-qrs" class="btn-export btn-clear">
+                                    <i class="fa-solid fa-trash-can"></i> Limpiar
+                                </button>
+                            </div>
+                        </div>
+                        <p class="subtitle">Encuentre aquí los códigos de sus estudiantes para visualizar o imprimir.</p>
+
+                        <div class="search-bar-container">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="search-qr-input" placeholder="Buscar por Nombre, RUT o Curso..." autocomplete="off">
+                        </div>
+
+                        <div id="qrs-container" class="qrs-list">
+                            <!-- Los Qrs dinámicos (Paginados) -->
+                        </div>
+                        
+                        <div class="pagination-controls" id="qr-pagination">
+                            <!-- JS Paginacion -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="print-container" class="print-only"></div>
+
+    <!-- Carga de Librerias -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <!-- Qrious - Libreria Ligera para generar QR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    
+    <!-- Lógica y Control -->
+    <script src="./js/app.js"></script>
+</body>
+</html>
