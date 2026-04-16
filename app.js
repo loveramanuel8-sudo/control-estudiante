@@ -438,11 +438,18 @@ function clearRecords() {
 
 function exportToExcel() {
     if(records.length === 0) return alert('No hay datos suficientes para exportar a Excel.');
-    const ws_data = [['Estudiante (RUT y Nombre)', 'Área', 'Sentido', 'Hora', 'Fecha']];
-    records.forEach(r => ws_data.push([r.texto, r.area || 'Principal', r.tipo, r.hora, r.fecha]));
+    const ws_data = [['Nombre', 'RUT', 'Curso', 'Área', 'Sentido', 'Hora', 'Fecha']];
+    records.forEach(r => {
+        let nombre = r.texto, rut = "Sin ID", curso = "Sin Curso";
+        const cIdx = nombre.indexOf(" - Curso: ");
+        if(cIdx !== -1) { curso = nombre.substring(cIdx + 10); nombre = nombre.substring(0, cIdx); }
+        const rIdx = nombre.indexOf(" - RUT: ");
+        if(rIdx !== -1) { rut = nombre.substring(rIdx + 8); nombre = nombre.substring(0, rIdx); }
+        ws_data.push([nombre, rut, curso, r.area || 'Principal', r.tipo, r.hora, r.fecha]);
+    });
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    ws['!cols'] = [{ wch: 40 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+    ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(wb, ws, "Control_Asistencia");
     XLSX.writeFile(wb, `Reporte_Acceso_QR_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.xlsx`);
 }
@@ -460,15 +467,23 @@ function exportToPDF() {
     doc.text(`Cantidad de Registros: ${records.length}`, 14, 34);
 
     const tableRows = [];
-    records.forEach(r => tableRows.push([r.texto, r.area || 'Principal', r.tipo, r.hora, r.fecha]));
+    records.forEach(r => {
+        let nombre = r.texto, rut = "Sin ID", curso = "Sin Curso";
+        const cIdx = nombre.indexOf(" - Curso: ");
+        if(cIdx !== -1) { curso = nombre.substring(cIdx + 10); nombre = nombre.substring(0, cIdx); }
+        const rIdx = nombre.indexOf(" - RUT: ");
+        if(rIdx !== -1) { rut = nombre.substring(rIdx + 8); nombre = nombre.substring(0, rIdx); }
+        tableRows.push([nombre, rut, curso, r.area || 'Principal', r.tipo, r.hora, r.fecha]);
+    });
 
     doc.autoTable({
-        head: [["Identidad (QR)", "Área", "Modo", "Hora", "Fecha"]],
+        head: [["Nombre", "RUT", "Curso", "Área", "Modo", "Hora", "Fecha"]],
         body: tableRows,
         startY: 40,
         theme: 'grid',
         headStyles: { fillColor: [16, 185, 129] },
         alternateRowStyles: { fillColor: [247, 248, 250] },
+        styles: { fontSize: 8 }
     });
     doc.save(`Reporte_Asistencia_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.pdf`);
 }
