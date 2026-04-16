@@ -39,7 +39,16 @@
                     <div class="scanner-section">
                         <div class="control-panel">
                             <h2>Registrar Asistencia</h2>
-                            <p>Seleccione el sentido del registro antes de escanear (el escáner se encenderá tras dar permisos).</p>
+                            <p>Seleccione el área y el sentido del registro antes de escanear.</p>
+                            
+                            <div class="area-selector" style="margin-bottom: 1rem;">
+                                <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:0.4rem; color:var(--text-main);">Área / Ubicación</label>
+                                <div style="display:flex; gap:0.5rem;">
+                                    <select id="area-select" style="flex:1; padding:0.75rem; border:1px solid var(--border); border-radius:6px; background:var(--surface); font-size:1rem; outline:none; color:var(--text-main);"></select>
+                                    <button id="btn-manage-areas" class="btn-secondary" style="padding:0.75rem 1rem; border:1px solid var(--border); background:var(--bg-color); border-radius:6px; cursor:pointer; color:var(--text-muted);" title="Configurar Áreas"><i class="fa-solid fa-cog"></i></button>
+                                </div>
+                            </div>
+
                             <div class="toggle-buttons">
                                 <button id="btn-entrada" class="btn-mode active">
                                     <i class="fa-solid fa-arrow-right-to-bracket"></i> ENTRADA
@@ -88,6 +97,7 @@
                                 <thead>
                                     <tr>
                                         <th>Estudiante / RUT</th>
+                                        <th>Área</th>
                                         <th>Sentido</th>
                                         <th>Hora</th>
                                         <th>Fecha</th>
@@ -163,6 +173,24 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Modal Áreas -->
+    <div id="modal-areas" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Gestión de Áreas</h2>
+                <button id="close-modal-areas" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:1rem; font-size:0.9rem; color:var(--text-muted);">Agrega o elimina áreas (ej: Biblioteca, Comedor, Portería). La primera área será la predeterminada.</p>
+                <div class="form-group" style="flex-direction:row; gap:0.5rem; margin-bottom:1.5rem; align-items:center;">
+                    <input type="text" id="new-area-input" placeholder="Nueva área..." style="flex:1;">
+                    <button id="btn-add-area" class="btn-primary" style="margin-top:0;">Añadir</button>
+                </div>
+                <ul id="areas-list" class="areas-list"></ul>
+            </div>
+        </div>
     </div>
 
     <div id="print-container" class="print-only"></div>

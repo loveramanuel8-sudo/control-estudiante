@@ -8,6 +8,7 @@ let filteredQRs = [];
 let html5QrcodeScanner = null;
 let lastScannedCode = null;
 let lastScanTime = 0;
+let areas = JSON.parse(localStorage.getItem('access_areas')) || ['Principal', 'Biblioteca', 'Comedor'];
 
 // Referencias DOM
 const btnEntrada = document.getElementById('btn-entrada');
@@ -18,6 +19,12 @@ const resultContainer = document.getElementById('last-scan-result');
 const resultName = document.getElementById('result-name');
 const resultTime = document.getElementById('result-time');
 const resultIcon = document.querySelector('.result-icon i');
+
+// Referencias DOM Areas
+const areaSelect = document.getElementById('area-select');
+const btnManageAreas = document.getElementById('btn-manage-areas');
+const modalAreas = document.getElementById('modal-areas');
+const closeModalAreas = document.getElementById('close-modal-areas');
 
 // Referencias DOM Generador y Tabs
 const tabScanner = document.getElementById('tab-scanner');
@@ -31,9 +38,16 @@ const qrsContainer = document.getElementById('qrs-container');
 document.addEventListener('DOMContentLoaded', () => {
     updateClock();
     setInterval(updateClock, 1000);
+    renderAreas();
     renderTable();
     renderSavedQRs();
     initScanner(); // El scanner se inicia pero se podría pausar si ocultan la vista. Se mantiene simple.
+
+    // Eventos Áreas
+    if(btnManageAreas) btnManageAreas.addEventListener('click', () => modalAreas.classList.add('show'));
+    if(closeModalAreas) closeModalAreas.addEventListener('click', () => modalAreas.classList.remove('show'));
+    const btnAddArea = document.getElementById('btn-add-area');
+    if(btnAddArea) btnAddArea.addEventListener('click', addArea);
 
     // Eventos Modo Control Asistencia
     btnEntrada.addEventListener('click', () => setMode('ENTRADA'));
@@ -320,9 +334,11 @@ function onScanSuccess(decodedText) {
 
 function processScan(qrText) {
     const now = new Date();
+    const selectedArea = areaSelect ? areaSelect.value : 'Principal';
     const newRecord = {
         id: "REC-" + Date.now(),
         texto: qrText.trim(),
+        area: selectedArea,
         tipo: currentMode,
         hora: now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit'}),
         fecha: now.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric'})
@@ -357,7 +373,7 @@ function showFeedback(record) {
     }
     
     resultName.textContent = record.texto; 
-    resultTime.textContent = `Movimiento de ${record.tipo} registrado a las ${record.hora}`;
+    resultTime.textContent = `${record.tipo} (${record.area || 'Principal'}) a las ${record.hora}`;
     
     playBeep(currentMode === 'ENTRADA' ? 800 : 500);
 
@@ -390,8 +406,10 @@ window.renderTable = function() {
     }
     displayRecords.forEach(record => {
         const tr = document.createElement('tr');
+        const recordArea = record.area || 'Principal';
         tr.innerHTML = `
             <td><strong>${record.texto}</strong></td>
+            <td>${recordArea}</td>
             <td><span class="badge ${record.tipo.toLowerCase()}">${record.tipo}</span></td>
             <td>${record.hora}</td>
             <td>${record.fecha}</td>
@@ -418,33 +436,13 @@ function clearRecords() {
     }
 }
 
-function parseRecordText(texto) {
-    let nombre = texto;
-    let rut = 'Sin ID';
-    let curso = 'Sin Curso';
-    
-    const rutMatch = texto.match(/- RUT:\s*(.*?)(?=\s*- Curso:|$)/);
-    const cursoMatch = texto.match(/- Curso:\s*(.*)$/);
-    
-    if (rutMatch || cursoMatch) {
-        nombre = texto.split(' - ')[0].trim();
-    }
-    if (rutMatch) rut = rutMatch[1].trim();
-    if (cursoMatch) curso = cursoMatch[1].trim();
-    
-    return { nombre, rut, curso };
-}
-
 function exportToExcel() {
     if(records.length === 0) return alert('No hay datos suficientes para exportar a Excel.');
-    const ws_data = [['Nombre', 'RUT', 'Curso', 'Sentido', 'Hora', 'Fecha']];
-    records.forEach(r => {
-        const parsed = parseRecordText(r.texto);
-        ws_data.push([parsed.nombre, parsed.rut, parsed.curso, r.tipo, r.hora, r.fecha]);
-    });
+    const ws_data = [['Estudiante (RUT y Nombre)', 'Área', 'Sentido', 'Hora', 'Fecha']];
+    records.forEach(r => ws_data.push([r.texto, r.area || 'Principal', r.tipo, r.hora, r.fecha]));
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 10 }];
+    ws['!cols'] = [{ wch: 40 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
     XLSX.utils.book_append_sheet(wb, ws, "Control_Asistencia");
     XLSX.writeFile(wb, `Reporte_Acceso_QR_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.xlsx`);
 }
@@ -462,13 +460,10 @@ function exportToPDF() {
     doc.text(`Cantidad de Registros: ${records.length}`, 14, 34);
 
     const tableRows = [];
-    records.forEach(r => {
-        const parsed = parseRecordText(r.texto);
-        tableRows.push([parsed.nombre, parsed.rut, parsed.curso, r.tipo, r.hora, r.fecha]);
-    });
+    records.forEach(r => tableRows.push([r.texto, r.area || 'Principal', r.tipo, r.hora, r.fecha]));
 
     doc.autoTable({
-        head: [["Nombre", "RUT", "Curso", "Modo", "Hora", "Fecha"]],
+        head: [["Identidad (QR)", "Área", "Modo", "Hora", "Fecha"]],
         body: tableRows,
         startY: 40,
         theme: 'grid',
@@ -476,4 +471,50 @@ function exportToPDF() {
         alternateRowStyles: { fillColor: [247, 248, 250] },
     });
     doc.save(`Reporte_Asistencia_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.pdf`);
+}
+
+// ==== GESTIÓN DE ÁREAS ====
+function renderAreas() {
+    if(areaSelect) {
+        const val = areaSelect.value;
+        areaSelect.innerHTML = '';
+        areas.forEach(a => {
+            const opt = document.createElement('option');
+            opt.value = a;
+            opt.textContent = a;
+            areaSelect.appendChild(opt);
+        });
+        if(areas.includes(val)) areaSelect.value = val;
+    }
+
+    const areasList = document.getElementById('areas-list');
+    if(areasList) {
+        areasList.innerHTML = '';
+        areas.forEach(a => {
+            const li = document.createElement('li');
+            li.className = 'area-item';
+            li.innerHTML = `<span>${a}</span> <button class="btn-del-area" onclick="deleteArea('${a}')" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>`;
+            areasList.appendChild(li);
+        });
+    }
+}
+
+function addArea() {
+    const input = document.getElementById('new-area-input');
+    const val = input.value.trim();
+    if(!val) return;
+    if(areas.includes(val)) return alert("El área ya existe.");
+    areas.push(val);
+    localStorage.setItem('access_areas', JSON.stringify(areas));
+    input.value = '';
+    renderAreas();
+}
+
+window.deleteArea = function(name) {
+    if(areas.length <= 1) return alert("Debe haber al menos 1 área configurada.");
+    if(confirm(`¿Eliminar el área '${name}'?`)) {
+        areas = areas.filter(a => a !== name);
+        localStorage.setItem('access_areas', JSON.stringify(areas));
+        renderAreas();
+    }
 }
