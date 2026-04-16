@@ -121,9 +121,25 @@
                         <h2>Crear Nuevo Código QR</h2>
                         <p>Ingrese los datos que quedarán guardados en el código de este estudiante.</p>
                         
-                        <div class="form-group">
-                            <label>Nombre Completo</label>
-                            <input type="text" id="qr-gen-name" placeholder="Ej. Juan Pérez González" autocomplete="off">
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label>Primer Nombre</label>
+                                <input type="text" id="qr-gen-pn" placeholder="Ej. Juan" autocomplete="off">
+                            </div>
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label>Segundo Nombre</label>
+                                <input type="text" id="qr-gen-sn" placeholder="Opcional" autocomplete="off">
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label>Primer Apellido</label>
+                                <input type="text" id="qr-gen-pa" placeholder="Ej. Pérez" autocomplete="off">
+                            </div>
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label>Segundo Apellido</label>
+                                <input type="text" id="qr-gen-sa" placeholder="Opcional" autocomplete="off">
+                            </div>
                         </div>
                         <div class="form-group">
                             <label>RUT / Identificador</label>
@@ -204,6 +220,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     
     <!-- Lógica y Control -->
-    <script src="./app.js"></script>
+    <script src="./app.js?v=3"></script>
 </body>
 </html>

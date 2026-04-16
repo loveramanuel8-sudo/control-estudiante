@@ -34,6 +34,49 @@ const viewGenerator = document.getElementById('view-generator');
 const btnGenerateQr = document.getElementById('btn-generate-qr');
 const qrsContainer = document.getElementById('qrs-container');
 
+// ==== PARSEO DE DATOS QR ====
+function parseQRData(texto) {
+    let pn = "", sn = "", pa = "", sa = "", rut = "Sin ID", curso = "Sin Curso", nombreCompleto = "";
+    
+    if (texto.includes('PN:')) {
+        const parts = texto.split('|');
+        const data = {};
+        parts.forEach(p => {
+            const index = p.indexOf(':');
+            if(index > -1) {
+                data[p.substring(0, index)] = p.substring(index + 1);
+            }
+        });
+        pn = data['PN'] || "";
+        sn = data['SN'] || "";
+        pa = data['PA'] || "";
+        sa = data['SA'] || "";
+        rut = data['RUT'] || "Sin ID";
+        curso = data['CUR'] || "Sin Curso";
+        
+        nombreCompleto = [pn, sn, pa, sa].filter(Boolean).join(' ');
+    } else {
+        let tempNombre = texto || "";
+        const matchCurso = tempNombre.match(/(?: - |-)?[Cc]urso:\s*(.*)/);
+        if(matchCurso) { curso = matchCurso[1].trim(); tempNombre = tempNombre.substring(0, matchCurso.index).trim(); }
+        const matchRut = tempNombre.match(/(?: - |-)?[Rr][Uu][Tt]:\s*(.*)/);
+        if(matchRut) { rut = matchRut[1].trim(); tempNombre = tempNombre.substring(0, matchRut.index).trim(); }
+        
+        nombreCompleto = tempNombre.replace(/\s*-\s*$/, "").trim();
+        const tokens = nombreCompleto.split(/\s+/);
+        if (tokens.length >= 4) {
+            pn = tokens[0]; sn = tokens[1]; pa = tokens[2]; sa = tokens.slice(3).join(' ');
+        } else if (tokens.length === 3) {
+            pn = tokens[0]; pa = tokens[1]; sa = tokens[2];
+        } else if (tokens.length === 2) {
+            pn = tokens[0]; pa = tokens[1];
+        } else {
+            pn = nombreCompleto;
+        }
+    }
+    return { pn, sn, pa, sa, rut, curso, nombreCompleto };
+}
+
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
     updateClock();
@@ -108,31 +151,45 @@ function compressImage(file, maxSize, callback) {
 }
 
 function createQR() {
-    const nameInput = document.getElementById('qr-gen-name');
+    const pnInput = document.getElementById('qr-gen-pn');
+    const snInput = document.getElementById('qr-gen-sn');
+    const paInput = document.getElementById('qr-gen-pa');
+    const saInput = document.getElementById('qr-gen-sa');
     const rutInput = document.getElementById('qr-gen-rut');
     const yearInput = document.getElementById('qr-gen-year');
     
-    const nameStr = nameInput.value.trim();
+    if(!pnInput) return alert("Error en interfaz. Por favor actualice la página.");
+
+    const pnStr = pnInput.value.trim();
+    const snStr = snInput.value.trim();
+    const paStr = paInput.value.trim();
+    const saStr = saInput.value.trim();
     const rutStr = rutInput.value.trim();
     const yearStr = yearInput.value.trim();
     const photoInput = document.getElementById('qr-gen-photo');
 
-    if(!nameStr) return alert("Debe ingresar el nombre del estudiante.");
+    if(!pnStr || !paStr) return alert("Debe ingresar al menos el primer nombre y el primer apellido.");
     
     // EVITAR DUPLICADOS DE RUT
     if(rutStr && rutStr !== "Sin ID") {
-        const exist = savedQRs.some(qr => qr.rut.toLowerCase() === rutStr.toLowerCase());
+        const exist = savedQRs.some(qr => {
+            let qRut = qr.rut || "";
+            if (qRut === "Sin ID" || !qRut) {
+                 const p = parseQRData(qr.textData);
+                 qRut = p.rut;
+            }
+            return qRut.toLowerCase() === rutStr.toLowerCase() && qRut !== "sin id";
+        });
         if(exist) return alert("Error: El RUT " + rutStr + " ya se encuentra registrado. No se permiten duplicados.");
     }
     
-    let textData = nameStr;
-    if(rutStr) textData += ` - RUT: ${rutStr}`;
-    if(yearStr) textData += ` - Curso: ${yearStr}`;
+    const textData = `PN:${pnStr}|SN:${snStr}|PA:${paStr}|SA:${saStr}|RUT:${rutStr}|CUR:${yearStr}`;
+    const nombreCompleto = [pnStr, snStr, paStr, saStr].filter(Boolean).join(' ');
 
     compressImage(photoInput.files[0], 150, (base64Img) => {
         const newQr = {
             id: "QR-" + Date.now(),
-            name: nameStr,
+            name: nombreCompleto,
             rut: rutStr || "Sin ID",
             year: yearStr || "Sin Curso",
             textData: textData,
@@ -144,11 +201,14 @@ function createQR() {
         localStorage.setItem('generated_qrs_list', JSON.stringify(savedQRs));
         
         // Limpiar form
-        nameInput.value = "";
+        pnInput.value = "";
+        snInput.value = "";
+        paInput.value = "";
+        saInput.value = "";
         rutInput.value = "";
         yearInput.value = "";
         photoInput.value = "";
-        nameInput.focus();
+        pnInput.focus();
 
         renderSavedQRs();
     });
@@ -372,7 +432,8 @@ function showFeedback(record) {
         feedbackIconDiv.style.color = "var(--secondary)";
     }
     
-    resultName.textContent = record.texto; 
+    const p = parseQRData(record.texto);
+    resultName.textContent = p.nombreCompleto; 
     resultTime.textContent = `${record.tipo} (${record.area || 'Principal'}) a las ${record.hora}`;
     
     playBeep(currentMode === 'ENTRADA' ? 800 : 500);
@@ -401,14 +462,15 @@ window.renderTable = function() {
     recordsBody.innerHTML = '';
     const displayRecords = [...records].reverse();
     if(displayRecords.length === 0) {
-        recordsBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #6B7280; padding: 2rem;">Aún no se han escaneado accesos.</td></tr>`;
+        recordsBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #6B7280; padding: 2rem;">Aún no se han escaneado accesos.</td></tr>`;
         return;
     }
     displayRecords.forEach(record => {
+        const p = parseQRData(record.texto);
         const tr = document.createElement('tr');
         const recordArea = record.area || 'Principal';
         tr.innerHTML = `
-            <td><strong>${record.texto}</strong></td>
+            <td><strong>${p.nombreCompleto}</strong><br><small style="color: var(--text-muted);">${p.rut}</small></td>
             <td>${recordArea}</td>
             <td><span class="badge ${record.tipo.toLowerCase()}">${record.tipo}</span></td>
             <td>${record.hora}</td>
@@ -438,18 +500,16 @@ function clearRecords() {
 
 function exportToExcel() {
     if(records.length === 0) return alert('No hay datos suficientes para exportar a Excel.');
-    const ws_data = [['Nombre', 'RUT', 'Curso', 'Área', 'Sentido', 'Hora', 'Fecha']];
+    const ws_data = [['P. Nombre', 'S. Nombre', 'P. Apellido', 'S. Apellido', 'RUT', 'Curso', 'Área', 'Sentido', 'Hora', 'Fecha']];
     records.forEach(r => {
-        let nombre = r.texto, rut = "Sin ID", curso = "Sin Curso";
-        const cIdx = nombre.indexOf(" - Curso: ");
-        if(cIdx !== -1) { curso = nombre.substring(cIdx + 10); nombre = nombre.substring(0, cIdx); }
-        const rIdx = nombre.indexOf(" - RUT: ");
-        if(rIdx !== -1) { rut = nombre.substring(rIdx + 8); nombre = nombre.substring(0, rIdx); }
-        ws_data.push([nombre, rut, curso, r.area || 'Principal', r.tipo, r.hora, r.fecha]);
+        const p = parseQRData(r.texto);
+        ws_data.push([p.pn, p.sn, p.pa, p.sa, p.rut, p.curso, r.area || 'Principal', r.tipo, r.hora, r.fecha]);
     });
+
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 12 }];
+    // Configurar anchos de columna aproximados
+    ws['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(wb, ws, "Control_Asistencia");
     XLSX.writeFile(wb, `Reporte_Acceso_QR_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.xlsx`);
 }
@@ -457,7 +517,7 @@ function exportToExcel() {
 function exportToPDF() {
     if(records.length === 0) return alert('No hay datos suficientes para exportar a PDF.');
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+    const doc = new jsPDF('l');
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.text("Reporte de Asistencia Institucional", 14, 20);
@@ -468,16 +528,12 @@ function exportToPDF() {
 
     const tableRows = [];
     records.forEach(r => {
-        let nombre = r.texto, rut = "Sin ID", curso = "Sin Curso";
-        const cIdx = nombre.indexOf(" - Curso: ");
-        if(cIdx !== -1) { curso = nombre.substring(cIdx + 10); nombre = nombre.substring(0, cIdx); }
-        const rIdx = nombre.indexOf(" - RUT: ");
-        if(rIdx !== -1) { rut = nombre.substring(rIdx + 8); nombre = nombre.substring(0, rIdx); }
-        tableRows.push([nombre, rut, curso, r.area || 'Principal', r.tipo, r.hora, r.fecha]);
+        const p = parseQRData(r.texto);
+        tableRows.push([p.pn, p.sn, p.pa, p.sa, p.rut, p.curso, r.area || 'Principal', r.tipo, r.hora, r.fecha]);
     });
 
     doc.autoTable({
-        head: [["Nombre", "RUT", "Curso", "Área", "Modo", "Hora", "Fecha"]],
+        head: [["P. Nombre", "S. Nombre", "P. Apellido", "S. Apellido", "RUT", "Curso", "Área", "Modo", "Hora", "Fecha"]],
         body: tableRows,
         startY: 40,
         theme: 'grid',
